@@ -1,0 +1,28 @@
+torch>=2.0.0
+torchvision>=0.15.0
+transformers==4.27.1
+accelerate>=0.20.0
+
+# GroundingDINO
+groundingdino-py>=0.4.0
+
+# SAM
+segment-anything @ git+https://github.com/facebookresearch/segment-anything.git
+mobile-sam @ git+https://github.com/ChaoningZhang/MobileSAM.git
+
+# CLIP
+open_clip_torch>=2.20.0
+ftfy
+regex
+
+# Image processing
+Pillow>=9.5.0
+opencv-python>=4.8.0
+
+# Utilities
+tqdm>=4.65.0
+numpy>=1.24.0
+# supervision 由 groundingdino-py 自动安装，无需单独指定
+
+# Optional: for better performance
+xformers>=0.0.20
