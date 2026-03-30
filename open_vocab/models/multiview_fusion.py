@@ -50,7 +50,7 @@ class MultiViewFusion:
     将多帧的 2D 检测结果融合到 3D 空间中
     """
     
-    def __init__(self, min_depth: float = 0.1, max_depth: float = 10.0):
+    def __init__(self, min_depth: float = 0.3, max_depth: float = 15.0):  # Replica 适用：0.3-15 米
         """
         初始化多视图融合器
         
@@ -100,10 +100,50 @@ class MultiViewFusion:
         v = mask_indices[0]  # y 坐标
         
         # 获取对应深度
-        depths = depth[v, u]
+        depths = depth[v, u].copy()
         
-        # 过滤无效深度
+        # Replica 数据预处理：去除 0 值噪声
+        # 如果掩码区域内 0 值太多，使用中值滤波填充
+        zero_ratio = (depths == 0).sum() / len(depths)
+        if zero_ratio > 0.5:  # 超过 50% 是 0 值
+            # 使用非零深度的中值填充
+            non_zero = depths[depths > 0]
+            if len(non_zero) > 0:
+                median_val = np.median(non_zero)
+                depths[depths == 0] = median_val
+        
+        # 过滤无效深度（包括 0 值）
         valid_mask = (depths > self.min_depth) & (depths < self.max_depth)
+        
+        # 如果有效点太少，尝试用中值填充
+        if valid_mask.sum() < len(depths) * 0.1:  # 少于 10% 有效
+            # 使用掩码区域内所有非零深度的中值
+            mask_region_depths = depth[mask > 0]
+            non_zero_depths = mask_region_depths[mask_region_depths > 0]
+            
+            print(f"    掩码区域统计:")
+            print(f"      总像素数：{len(mask_region_depths)}")
+            print(f"      非零像素：{len(non_zero_depths)} ({len(non_zero_depths)/len(mask_region_depths)*100:.1f}%)")
+            if len(non_zero_depths) > 0:
+                median_depth = np.median(non_zero_depths)
+                mean_depth = np.mean(non_zero_depths)
+                print(f"      中值深度：{median_depth/1000:.2f}m")
+                print(f"      平均深度：{mean_depth/1000:.2f}m")
+                print(f"      深度范围：[{non_zero_depths.min()/1000:.2f}m, {non_zero_depths.max()/1000:.2f}m]")
+                
+                # 如果中值太小，使用平均值（至少 0.5 米）
+                if median_depth < 500:  # 小于 0.5 米
+                    use_depth = max(mean_depth, 1000)  # 至少 1 米
+                    print(f"    ⚠️ 中值过小，改用：{use_depth/1000:.2f}m")
+                else:
+                    use_depth = median_depth
+                
+                # 将无效深度替换为选中值
+                depths[~valid_mask] = use_depth
+                valid_mask = (depths > self.min_depth) & (depths < self.max_depth)
+            else:
+                print(f"    ⚠️ 掩码区域内没有有效深度！")
+        
         if not np.any(valid_mask):
             return np.array([]).reshape(0, 3)
         

@@ -75,7 +75,7 @@ def main():
                         help="不使用 SAM 进行分割")
     parser.add_argument("--download", action="store_true",
                         help="下载模型权重")
-    parser.add_argument("--classes_file", type=str, default="classes.txt",
+    parser.add_argument("--classes_file", type=str, 
                         help="类别文件路径")
     
     args = parser.parse_args()

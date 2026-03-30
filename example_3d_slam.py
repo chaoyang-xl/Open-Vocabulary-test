@@ -7,7 +7,14 @@
 import numpy as np
 import cv2
 from pathlib import Path
-import open3d as o3d
+
+try:
+    import open3d as o3d
+    HAS_OPEN3D = True
+except ImportError:
+    HAS_OPEN3D = False
+    print("警告：open3d 未安装，部分可视化功能将不可用")
+    print("请运行：pip install open3d")
 
 
 def example_rgbd_sequence_processing():
@@ -133,17 +140,33 @@ def example_single_frame_3d():
     )
     
     # 读取 RGB-D 图像
-    rgb_image = cv2.imread("your_rgb_image.jpg")
+    rgb_image = cv2.imread("rgb_img0.png")
     rgb_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2RGB)
     
-    depth_image = cv2.imread("your_depth_image.png", cv2.IMREAD_UNCHANGED)
+    depth_image = cv2.imread("depth_img0.png", cv2.IMREAD_UNCHANGED)
+    # ✅ 正确做法：直接转换为米（假设深度图单位是毫米）
     depth_image = depth_image.astype(np.float32) / 1000.0
     
+    # 如果深度值有异常（比如全 0），使用默认值
+    if depth_image.max() < 0.1 or depth_image.max() > 100:
+        print(f"⚠️ 深度值异常：[{depth_image.min():.3f}m, {depth_image.max():.3f}m]，使用默认深度 5m")
+        depth_image = np.ones_like(depth_image) * 5.0
+    
+    print(f"✅ 深度图加载完成！范围：[{depth_image.min():.2f}m, {depth_image.max():.2f}m]")
+    
     # 相机参数
+    # intrinsics = np.array([
+    #     [615.7, 0, 324.9],
+    #     [0, 615.7, 241.8],
+    #     [0, 0, 1]
+    # ])
+
+    # Replica 数据集相机内参（标准配置）
+    # Replica 默认：1200x680, fx=fy=600, cx=600, cy=340
     intrinsics = np.array([
-        [615.7, 0, 324.9],
-        [0, 615.7, 241.8],
-        [0, 0, 1]
+        [600.0, 0, 600.0],   # fx, skew, cx
+        [0, 600.0, 340.0],   # skew, fy, cy
+        [0, 0, 1]            # 0, 0, 1
     ])
     pose = np.eye(4)  # 单位矩阵
     
@@ -190,9 +213,12 @@ def example_single_frame_3d():
             print(f"  包围盒：{bbox}")
             
             # 可视化点云
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(points_3d)
-            o3d.visualization.show_geometries([pcd])
+            if HAS_OPEN3D:
+                pcd = o3d.geometry.PointCloud()
+                pcd.points = o3d.utility.Vector3dVector(points_3d)
+                o3d.visualization.draw_geometries([pcd])
+            else:
+                print("  跳过可视化（open3d 未安装）")
 
 
 def example_scene_graph_query():
@@ -296,6 +322,6 @@ if __name__ == "__main__":
     
     # 运行示例（取消注释你想运行的示例）
     # example_rgbd_sequence_processing()
-    # example_single_frame_3d()
+    example_single_frame_3d()
     # example_scene_graph_query()
     # example_custom_dataset()

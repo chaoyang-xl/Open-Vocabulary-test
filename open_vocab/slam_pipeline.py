@@ -10,8 +10,14 @@ import cv2
 from typing import List, Dict, Optional, Tuple
 import time
 
-from .slam_3d import VoxelGrid, ObjectMap, SceneGraph
-from .multiview_fusion import MultiViewFusion, FrameObservation, create_frame_observation
+try:
+    import open3d as o3d
+    HAS_OPEN3D = True
+except ImportError:
+    HAS_OPEN3D = False
+
+from .models.slam_3d import VoxelGrid, ObjectMap, SceneGraph
+from .models.multiview_fusion import MultiViewFusion, FrameObservation, create_frame_observation
 
 
 class ObjectSLAMPipeline:
@@ -283,9 +289,7 @@ class ObjectSLAMPipeline:
         """
         可视化重建结果（使用 Open3D）
         """
-        try:
-            import open3d as o3d
-        except ImportError:
+        if not HAS_OPEN3D:
             print("请安装 open3d: pip install open3d")
             return
         
@@ -308,7 +312,7 @@ class ObjectSLAMPipeline:
         vis.run()
         vis.destroy_window()
     
-    def _create_3d_bbox(self, bbox_3d: np.ndarray) -> o3d.geometry.LineSet:
+    def _create_3d_bbox(self, bbox_3d: np.ndarray):  # -> o3d.geometry.LineSet
         """
         创建 3D 包围盒可视化
         
@@ -318,6 +322,9 @@ class ObjectSLAMPipeline:
         Returns:
             Open3D LineSet
         """
+        if not HAS_OPEN3D:
+            return None
+        
         import open3d as o3d
         
         min_corner = bbox_3d[:3]
